@@ -126,6 +126,4 @@ if st.button("Detection Result"):
             st.success(
                 f"✅ The '{x}' transaction that took place between {sender_name} and {receiver_name} is **LIKELY LEGITIMATE (Rule-based)**."
             )
-            st.info(
-                "Note: This is a rule-based approximation used for demo purposes, not a real ML model."
-            )
+
