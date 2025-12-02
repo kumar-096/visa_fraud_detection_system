@@ -1,82 +1,111 @@
 import streamlit as st
-import json
-import requests as re
+import pickle
 
 st.title("Credit Card Fraud Detection Web App")
 
 st.image("image.png")
 
 
+# ---- Load the trained ML model once ----
+@st.cache_resource
+def load_model():
+    with open("credit_fraud.pkl", "rb") as f:
+        model = pickle.load(f)
+    return model
 
-st.sidebar.header('Input Features of The Transaction')
+model = load_model()
 
-sender_name = st.sidebar.text_input("""Input Sender ID""")
-receiver_name = st.sidebar.text_input("""Input Receiver ID""")
-step = st.sidebar.slider("""Number of Hours it took the Transaction to complete: """)
-types = st.sidebar.subheader(f"""
-                 Enter Type of Transfer Made:\n\n\n\n
-                 0 for 'Cash In' Transaction\n 
-                 1 for 'Cash Out' Transaction\n 
-                 2 for 'Debit' Transaction\n
-                 3 for 'Payment' Transaction\n  
-                 4 for 'Transfer' Transaction\n""")
-types = st.sidebar.selectbox("",(0,1,2,3,4))
-x = ''
+
+# ---- Sidebar inputs ----
+st.sidebar.header("Input Features of The Transaction")
+
+sender_name = st.sidebar.text_input("Input Sender ID")
+receiver_name = st.sidebar.text_input("Input Receiver ID")
+
+step = st.sidebar.slider("Number of Hours it took the Transaction to complete:", min_value=0, max_value=100, value=0)
+
+st.sidebar.markdown(
+    """
+    **Enter Type of Transfer Made:**
+    - 0 → Cash In  
+    - 1 → Cash Out  
+    - 2 → Debit  
+    - 3 → Payment  
+    - 4 → Transfer
+    """
+)
+
+types = st.sidebar.selectbox("Transaction type (0–4)", (0, 1, 2, 3, 4))
+
+x = ""
 if types == 0:
-    x = 'Cash in'
-if types == 1:
-    x = 'Cash Out'
-if types == 2:
-    x = 'Debit'
-if types == 3:
-    x = 'Payment'
-if types == 4:
-    x =  'Transfer'
-    
-amount = st.sidebar.number_input("Amount in $",min_value=0, max_value=110000)
-oldbalanceorg = st.sidebar.number_input("""Sender Balance Before Transaction was made""",min_value=0, max_value=110000)
-newbalanceorg= st.sidebar.number_input("""Sender Balance After Transaction was made""",min_value=0, max_value=110000)
-oldbalancedest= st.sidebar.number_input("""Recipient Balance Before Transaction was made""",min_value=0, max_value=110000)
-newbalancedest= st.sidebar.number_input("""Recipient Balance After Transaction was made""",min_value=0, max_value=110000)
-isflaggedfraud = 0
-if amount >= 200000:
-  isflaggedfraud = 1
-else:
-  isflaggedfraud = 0
+    x = "Cash In"
+elif types == 1:
+    x = "Cash Out"
+elif types == 2:
+    x = "Debit"
+elif types == 3:
+    x = "Payment"
+elif types == 4:
+    x = "Transfer"
+
+amount = st.sidebar.number_input("Amount in $", min_value=0, max_value=110000, value=0)
+oldbalanceorg = st.sidebar.number_input("Sender Balance Before Transaction was made", min_value=0, max_value=110000, value=0)
+newbalanceorg = st.sidebar.number_input("Sender Balance After Transaction was made", min_value=0, max_value=110000, value=0)
+oldbalancedest = st.sidebar.number_input("Recipient Balance Before Transaction was made", min_value=0, max_value=110000, value=0)
+newbalancedest = st.sidebar.number_input("Recipient Balance After Transaction was made", min_value=0, max_value=110000, value=0)
+
+# Simple flag feature used in the original project
+isflaggedfraud = 1 if amount >= 200000 else 0
 
 
 if st.button("Detection Result"):
-    values = {
-    "step": step,
-    "types": types,
-    "amount": amount,
-    "oldbalanceorig": oldbalanceorg,
-    "newbalanceorig": newbalanceorg,
-    "oldbalancedest": oldbalancedest,
-    "newbalancedest": newbalancedest,
-    "isflaggedfraud": isflaggedfraud
-    }
+    # Show the transaction summary
+    st.write(
+        f"""### These are the transaction details:
 
+- Sender ID: **{sender_name or "N/A"}**
+- Receiver ID: **{receiver_name or "N/A"}**
+- 1. Number of Hours it took to complete: **{step}**
+- 2. Type of Transaction: **{x}**
+- 3. Amount Sent: **{amount}$**
+- 4. Sender Balance Before Transaction: **{oldbalanceorg}$**
+- 5. Sender Balance After Transaction: **{newbalanceorg}$**
+- 6. Recipient Balance Before Transaction: **{oldbalancedest}$**
+- 7. Recipient Balance After Transaction: **{newbalancedest}$**
+- 8. System Flag Fraud Status (amount ≥ $200000): **{isflaggedfraud}**
+"""
+    )
 
-    st.write(f"""### These are the transaction details:\n
-    Sender ID: {sender_name}
-    Receiver ID: {receiver_name}
-    1. Number of Hours it took to complete: {step}\n
-    2. Type of Transaction: {x}\n
-    3. Amount Sent: {amount}$\n
-    4. Sender Balance Before Transaction: {oldbalanceorg}$\n
-    5. Sender Balance After Transaction: {newbalanceorg}$\n
-    6. Recepient Balance Before Transaction: {oldbalancedest}$\n
-    7. Recepient Balance After Transaction: {newbalancedest}$\n
-    8. System Flag Fraud Status(Transaction amount greater than $200000): {isflaggedfraud}
-                """)
-
-    res = re.post(f"https://credit-fraud-ml-api.herokuapp.com/predict",json=values)
-    json_str = json.dumps(res.json())
-    resp = json.loads(json_str)
-    
-    if sender_name=='' or receiver_name == '':
-        st.write("Error! Please input Transaction ID or Names of Sender and Receiver!")
+    if sender_name == "" or receiver_name == "":
+        st.error("Please input Sender ID and Receiver ID!")
     else:
-        st.write(f"""### The '{x}' transaction that took place between {sender_name} and {receiver_name} is {resp[0]}.""")
+        # ---- Build feature vector for the model ----
+        features = [[
+            step,
+            types,
+            amount,
+            oldbalanceorg,
+            newbalanceorg,
+            oldbalancedest,
+            newbalancedest,
+            isflaggedfraud
+        ]]
 
+        try:
+            pred = model.predict(features)[0]  # 0 = not fraud, 1 = fraud (in original project)
+
+            if pred == 1:
+                result_text = "FRAUDULENT"
+                st.error(
+                    f"⚠️ The '{x}' transaction that took place between {sender_name} and {receiver_name} is **{result_text}**."
+                )
+            else:
+                result_text = "LEGITIMATE"
+                st.success(
+                    f"✅ The '{x}' transaction that took place between {sender_name} and {receiver_name} is **{result_text}**."
+                )
+
+        except Exception as e:
+            st.error("Something went wrong while running the prediction.")
+            st.exception(e)
