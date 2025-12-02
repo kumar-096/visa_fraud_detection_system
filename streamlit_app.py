@@ -6,25 +6,6 @@ st.title("Credit Card Fraud Detection Web App")
 
 st.image("image.png")
 
-st.write("""
-## About
-Credit card fraud is a form of identity theft that involves an unauthorized taking of another's credit card information for the purpose of charging purchases to the account or removing funds from it.
-
-**This Streamlit App utilizes a Machine Learning model served as an API in order to detect fraudulent credit card transactions based on the following criteria: hours, type of transaction, amount, balance before and after transaction etc.** 
-
-The API was built with FastAPI and can be found [here.](https://credit-fraud-ml-api.herokuapp.com/)
-
-The notebook, model and documentation(Dockerfiles, FastAPI script, Streamlit App script) are available on [GitHub.](https://github.com/Nneji123/Credit-Card-Fraud-Detection)        
-
-**Made by Group 3 Zummit Africa AI/ML Team**
-
-**Contributors:** 
-- **Hilary Ifezue(Group Lead)**
-- **Nneji Ifeanyi**
-- **Somtochukwu Ogechi**
-- **ThankGod Omieje**
-- **Kachukwu Okoh**
-""")
 
 
 st.sidebar.header('Input Features of The Transaction')
@@ -98,3 +79,4 @@ if st.button("Detection Result"):
         st.write("Error! Please input Transaction ID or Names of Sender and Receiver!")
     else:
         st.write(f"""### The '{x}' transaction that took place between {sender_name} and {receiver_name} is {resp[0]}.""")
+
