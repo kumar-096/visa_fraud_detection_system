@@ -1,20 +1,8 @@
 import streamlit as st
-import pickle
 
 st.title("Credit Card Fraud Detection Web App")
 
 st.image("image.png")
-
-
-# ---- Load the trained ML model once ----
-@st.cache_resource
-def load_model():
-    with open("credit_fraud.pkl", "rb") as f:
-        model = pickle.load(f)
-    return model
-
-model = load_model()
-
 
 # ---- Sidebar inputs ----
 st.sidebar.header("Input Features of The Transaction")
@@ -22,7 +10,12 @@ st.sidebar.header("Input Features of The Transaction")
 sender_name = st.sidebar.text_input("Input Sender ID")
 receiver_name = st.sidebar.text_input("Input Receiver ID")
 
-step = st.sidebar.slider("Number of Hours it took the Transaction to complete:", min_value=0, max_value=100, value=0)
+step = st.sidebar.slider(
+    "Number of Hours it took the Transaction to complete:",
+    min_value=0,
+    max_value=100,
+    value=0,
+)
 
 st.sidebar.markdown(
     """
@@ -49,15 +42,30 @@ elif types == 3:
 elif types == 4:
     x = "Transfer"
 
-amount = st.sidebar.number_input("Amount in $", min_value=0, max_value=110000, value=0)
-oldbalanceorg = st.sidebar.number_input("Sender Balance Before Transaction was made", min_value=0, max_value=110000, value=0)
-newbalanceorg = st.sidebar.number_input("Sender Balance After Transaction was made", min_value=0, max_value=110000, value=0)
-oldbalancedest = st.sidebar.number_input("Recipient Balance Before Transaction was made", min_value=0, max_value=110000, value=0)
-newbalancedest = st.sidebar.number_input("Recipient Balance After Transaction was made", min_value=0, max_value=110000, value=0)
+amount = st.sidebar.number_input(
+    "Amount in $", min_value=0, max_value=110000, value=0
+)
+oldbalanceorg = st.sidebar.number_input(
+    "Sender Balance Before Transaction was made", min_value=0, max_value=110000, value=0
+)
+newbalanceorg = st.sidebar.number_input(
+    "Sender Balance After Transaction was made", min_value=0, max_value=110000, value=0
+)
+oldbalancedest = st.sidebar.number_input(
+    "Recipient Balance Before Transaction was made",
+    min_value=0,
+    max_value=110000,
+    value=0,
+)
+newbalancedest = st.sidebar.number_input(
+    "Recipient Balance After Transaction was made",
+    min_value=0,
+    max_value=110000,
+    value=0,
+)
 
-# Simple flag feature used in the original project
+# Simple flag feature
 isflaggedfraud = 1 if amount >= 200000 else 0
-
 
 if st.button("Detection Result"):
     # Show the transaction summary
@@ -80,32 +88,44 @@ if st.button("Detection Result"):
     if sender_name == "" or receiver_name == "":
         st.error("Please input Sender ID and Receiver ID!")
     else:
-        # ---- Build feature vector for the model ----
-        features = [[
-            step,
-            types,
-            amount,
-            oldbalanceorg,
-            newbalanceorg,
-            oldbalancedest,
-            newbalancedest,
-            isflaggedfraud
-        ]]
+        # --------- SIMPLE RULE-BASED "FAKE ML" PREDICTION ----------
 
-        try:
-            pred = model.predict(features)[0]  # 0 = not fraud, 1 = fraud (in original project)
+        fraud = False
+        reasons = []
 
-            if pred == 1:
-                result_text = "FRAUDULENT"
-                st.error(
-                    f"⚠️ The '{x}' transaction that took place between {sender_name} and {receiver_name} is **{result_text}**."
-                )
-            else:
-                result_text = "LEGITIMATE"
-                st.success(
-                    f"✅ The '{x}' transaction that took place between {sender_name} and {receiver_name} is **{result_text}**."
-                )
+        # Rule 1: Amount greater than sender balance before → impossible → fraud
+        if amount > oldbalanceorg:
+            fraud = True
+            reasons.append("Amount is greater than sender's initial balance.")
 
-        except Exception as e:
-            st.error("Something went wrong while running the prediction.")
-            st.exception(e)
+        # Rule 2: Sender balance increases after sending → suspicious
+        if newbalanceorg > oldbalanceorg:
+            fraud = True
+            reasons.append("Sender balance increased after sending money.")
+
+        # Rule 3: Very large transaction amount
+        if amount > 100000:
+            fraud = True
+            reasons.append("Amount is unusually large.")
+
+        # Rule 4: Internal flag from amount threshold
+        if isflaggedfraud == 1:
+            fraud = True
+            reasons.append("System flagged this transaction as high risk.")
+
+        # --------- SHOW RESULT ----------
+        if fraud:
+            st.error(
+                f"⚠️ The '{x}' transaction that took place between {sender_name} and {receiver_name} is **FRAUDULENT (Rule-based)**."
+            )
+            if reasons:
+                st.write("**Reason(s) detected:**")
+                for r in reasons:
+                    st.write(f"- {r}")
+        else:
+            st.success(
+                f"✅ The '{x}' transaction that took place between {sender_name} and {receiver_name} is **LIKELY LEGITIMATE (Rule-based)**."
+            )
+            st.info(
+                "Note: This is a rule-based approximation used for demo purposes, not a real ML model."
+            )
